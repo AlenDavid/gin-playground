@@ -1,0 +1,82 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-htpasswd
+data:
+  htpasswd: "testuser:$2y$05$yB2d87QCRIvPpP7dropHpup6szJBv1af7qy6HvN.MkC2vtd42emI2"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-private-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-private-registry
+  template:
+    metadata:
+      labels:
+        app: my-private-registry
+    spec:
+      volumes:
+        - name: auth-htpasswd
+          configMap:
+            name: auth-htpasswd
+      containers:
+      - name: my-private-registry
+        image: registry
+        volumeMounts:
+          - mountPath: /auth
+            name: auth-htpasswd
+            readOnly: true
+        env:
+          - name: REGISTRY_AUTH
+            value: "htpasswd"
+          - name: REGISTRY_AUTH_HTPASSWD_REALM
+            value: "Registry Realm"
+          - name: REGISTRY_AUTH_HTPASSWD_PATH
+            value: "/auth/htpasswd"
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 5000
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-registry-service
+spec:
+  selector:
+    app: my-private-registry
+  ports:
+  - port: 5000
+    targetPort: 5000
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: my-registry-ingress
+  annotations:
+    cert-manager.io/cluster-issuer: "registry-letsencrypt-prod"  # ClusterIssuer name
+  labels:
+    name: my-registry-ingress
+spec:
+  tls:
+  - hosts:
+    - registry.alen.tk
+    secretName: alen-registry.letsencrypt-prod
+  rules:
+  - host: registry.alen.tk
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: my-registry-service
+            port:
+              number: 5000

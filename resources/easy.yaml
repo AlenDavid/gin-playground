@@ -83,28 +83,3 @@ spec:
               name: my-service
               port:
                 number: 8080
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: my-portfolio-ingress
-  annotations:
-    cert-manager.io/cluster-issuer: "portfolio-letsencrypt-prod"  # ClusterIssuer name
-  labels:
-    name: my-portfolio-ingress
-spec:
-  tls:
-  - hosts:
-    - portfolio.alen.tk
-    secretName: alen-portfolio-letsencrypt-prod
-  rules:
-    - host: portfolio.alen.tk
-    - http:
-        paths:
-        - pathType: Prefix
-          path: "/"
-          backend:
-            service:
-              name: my-service
-              port:
-                number: 8080
